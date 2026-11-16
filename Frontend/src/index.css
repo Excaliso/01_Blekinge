@@ -1,0 +1,58 @@
+:root {
+    --text: #6b6375;
+}
+body {
+  margin: 0;
+}
+
+#root {
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  border-inline: 1px solid var(--border);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ----------------------------------------------------------------- */
+
+.inputBox{
+  padding-top: 40px;
+}
+
+.Project{
+  padding-top: 5%;
+  padding-bottom: 2%;
+}
+
+*{
+  font-family: Consolas;
+  font-size: 20px;
+}
+
+div .project {
+  width: 100%;
+  padding-bottom: 1%;
+  padding-top: 1%;
+}
+
+div .task {
+  background: #c8a7df3f;
+  
+  padding-top: 0.5%;
+  width: 100%;
+  height: 100%;
+}
+
+.interaction{
+
+  justify-content: center;
+  align-items: center;
+}
+
+.projectCards{
+  gap: 20px;
+}

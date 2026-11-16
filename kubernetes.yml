@@ -1,0 +1,230 @@
+---
+################  FRONTEND  ########################
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend-service
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5173
+---
+apiVersion: apps/v1
+kind: Deployment #What type we wanna create
+metadata:
+  name: frontend
+  labels:
+    app: frontend-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-service
+  template:
+    metadata:
+      labels:
+        app: frontend-service
+    # Desired state of the container(s)
+    spec: 
+      containers:
+      - name: frontend
+        image: excalisea/frontend-turnin:latest
+        #imagePullPolicy: Never
+        ports:
+        - containerPort: 5173
+
+################  USER SERVICE  ########################
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+  - protocol: TCP
+    port: 3001
+    targetPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment #What type we wanna create
+metadata:
+  name: user-service 
+  labels:
+    app: user-service 
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    # Desired state of the container(s)
+    spec: 
+      containers:
+      - name: user-service
+        image: excalisea/userservice-turnin:latest
+        args:
+        - "-text=you have succesfully connected"
+        - "-listen=:3001"
+        ports:
+        - containerPort: 3001
+---
+################  INGRESS  ########################
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: user-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: / #Routes it to start at the frontend
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 80
+      - path: /api/login
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port:
+              number: 3001
+      - path: /api/interact
+        pathType: Prefix
+        backend:
+          service:
+            name: worker-service
+            port:
+              number: 3000
+      - path: /api/refresh
+        pathType: Prefix
+        backend:
+          service:
+            name: worker-service
+            port:
+              number: 3000
+---
+################  WORKER SERVICE  ########################
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker-service
+spec:
+  selector:
+    app: worker-service
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment #What type we wanna create
+metadata:
+  name: worker-service
+  labels:
+    app: worker-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: worker-service
+  template:
+    metadata:
+      labels:
+        app: worker-service
+    # Desired state of the container(s)
+    spec: 
+      containers:
+      - name: worker-service
+        image: excalisea/workerservice-turnin:latest
+        args:
+        ports:
+        - containerPort: 3000
+---
+################  DATABASE  ########################
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+spec:
+  selector:
+    app: database
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: toartistpvc
+spec:
+  storageClassName: standard
+  volumeName: ""
+  accessModes: ["ReadWriteOnce"] #one pod at a time (access)
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: database
+  labels:
+    app: database
+spec:
+  serviceName: postgres
+  replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+  selector:
+    matchLabels:
+      app: database
+  template:
+    metadata:
+      labels:
+        app: database
+    spec:
+      containers:
+      - name: database
+        image: postgres:17
+        volumeMounts:
+        - name: database
+          mountPath: /var/lib/postgresql/data
+        ports:
+        - containerPort: 5432
+          name: databaseport
+        env: 
+          - name: POSTGRES_PASSWORD #Yes, this is incredibly unsafe.
+            value: "postgres"
+          - name: POSTGRES_DB
+            value: "toartistdb"
+      volumes:
+      - name: database
+        persistentVolumeClaim:
+          claimName: toartistpvc
+---
